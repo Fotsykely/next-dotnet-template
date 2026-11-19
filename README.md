@@ -1,6 +1,6 @@
 # next-dotnet-template
 
-Template de démarrage pour une application **Next.js 16** (front) et **ASP.NET Core / .NET 10** (API), avec PostgreSQL.
+Template de démarrage pour une application **Next.js 16** (front) et **ASP.NET Core / .NET 10** (API), avec MySQL 8.4 (EF Core 9 + Pomelo). Branche `mysql` : la branche `main` utilise PostgreSQL.
 
 Il contient un petit CRUD d'exemple (`Item`) qui montre le chemin complet : base de données → API → `lib/api-client` → pages Next.js. On le renomme ou on le supprime une fois le pattern compris.
 
@@ -32,7 +32,7 @@ docker compose up -d
 
 ```bash
 cd backend/Api
-dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5433;Database=app;Username=app;Password=change-me"
+dotnet user-secrets set "ConnectionStrings:Default" "Server=localhost;Port=3307;Database=app;User=app;Password=change-me"
 dotnet run                  # http://localhost:5080
 ```
 
@@ -54,17 +54,17 @@ Documentation interactive de l'API (en développement) : <http://localhost:5080/
 ## Tests
 
 ```bash
-cd backend && dotnet test                  # Docker doit tourner : Testcontainers lance un PostgreSQL jetable
+cd backend && dotnet test                  # Docker doit tourner : Testcontainers lance un MySQL jetable
 cd frontend && npm run lint && npm test    # ESLint, puis Vitest sur lib/api-client
 cd frontend && npm run build               # API_BASE_URL doit être définie (voir .env.local)
 ```
 
-Les tests de l'API utilisent un vrai PostgreSQL et non SQLite ou le fournisseur en mémoire : les migrations sont propres à Npgsql.
+Les tests de l'API utilisent un vrai MySQL et non SQLite ou le fournisseur en mémoire : les migrations sont propres à Pomelo.
 
 ## Architecture
 
 ```
-Navigateur ──► Next.js (:3000) ──► API ASP.NET Core (:5080) ──► PostgreSQL (:5433)
+Navigateur ──► Next.js (:3000) ──► API ASP.NET Core (:5080) ──► MySQL (:3307)
 ```
 
 Seul le serveur Next.js parle à l'API. Il n'y a donc **pas de CORS** à configurer, et l'URL de l'API (`API_BASE_URL`, sans préfixe `NEXT_PUBLIC_`) n'arrive jamais dans le navigateur.
@@ -114,6 +114,8 @@ Exemple : `Product`. Suivez le chemin d'`Item`.
    dotnet ef migrations add AddProduct --project Api
    ```
    Le `dotnet ef` a besoin d'une chaîne de connexion pour construire l'application : exportez `ConnectionStrings__Default` si vous n'avez pas de *user secret*.
+
+   Branche `mysql` : le projet reste en `net10.0`, mais les paquets EF Core sont en `9.*` car Pomelo n'a pas de version pour EF Core 10. L'outil `dotnet-ef` est donc en 9.0.23 (avec `rollForward`), et `MySqlConnector` est épinglé en 2.6.2 (la 2.4.0 tirée par Pomelo a une vulnérabilité connue).
 6. **Front** : type dans `lib/api-client/types.ts`, fonctions dans `lib/api-client/products.ts`, Server Actions dans `app/products/actions.ts`, formulaire et pages sur le modèle de `item-form.tsx` et `app/items/`.
 7. **Tests** : un fichier `ProductsEndpointsTests.cs` sur le modèle de `ItemsEndpointsTests.cs`.
 
@@ -146,7 +148,7 @@ Côté front : le nom de l'application est dans `app/layout.tsx` (métadonnées 
 ## Choix et limites
 
 - Pas d'authentification, pas de CORS (inutile tant que seul le serveur Next appelle l'API).
-- Pas de CI ni de Dockerfiles : Docker ne sert qu'à PostgreSQL.
+- Pas de CI ni de Dockerfiles : Docker ne sert qu'à MySQL.
 - Les types du front sont écrits à la main. Pour de gros projets, générez-les depuis `/openapi/v1.json`.
 - La réponse de l'API est typée par un cast `as T` à un seul endroit (`client.ts`), sans validation à l'exécution. Ajoutez zod à cet endroit si l'API n'est pas de confiance.
 - Conventions : identifiants et commentaires en anglais, textes affichés à l'utilisateur en français, commits en [Conventional Commits](https://www.conventionalcommits.org/).
